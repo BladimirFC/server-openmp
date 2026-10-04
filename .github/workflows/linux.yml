@@ -1,0 +1,29 @@
+name: Linux - compilacion y autenticacion
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Instalar bibliotecas de 32 bits
+        run: sudo bash tools/instalar-dependencias-linux.sh
+      - name: Verificar binarios oficiales y sintaxis
+        run: |
+          sha256sum --check tools/linux-binaries.sha256
+          for script in compilar.sh iniciar.sh tools/instalar-dependencias-linux.sh tools/probar-auth.sh; do
+            bash -n "$script"
+          done
+      - name: Compilar, arrancar la GM y probar autenticacion
+        run: ./tools/probar-auth.sh

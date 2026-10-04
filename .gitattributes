@@ -1,0 +1,5 @@
+*.sh text eol=lf
+.github/workflows/*.yml text eol=lf
+*.so binary
+/omp-server binary
+/tools/pawnc-3.10.10-linux/bin/* binary

@@ -1,0 +1,22 @@
+{
+  "pawn": {
+    "version": "3.10.10",
+    "url": "https://github.com/pawn-lang/compiler/releases/download/v3.10.10/pawnc-3.10.10-linux.tar.gz",
+    "sha256": "9bbb1df6e933318fce1fa61951e4196b70613c637a5a1d4c96937e147c18468d",
+    "destination": "tools/pawnc-3.10.10-linux/"
+  },
+  "openmp": {
+    "version": "1.5.8.3079",
+    "url": "https://github.com/openmultiplayer/open.mp/releases/download/v1.5.8.3079/open.mp-linux-x86.tar.gz",
+    "sha256": "5df708898cbbb97f6c299ad5c1ff663a52ad4d3d39b3d561f1fe08a32df424f4",
+    "destinations": ["omp-server", "components/*.so"],
+    "published_digest_verified": true
+  },
+  "bcrypt": {
+    "version": "0.4.1",
+    "url": "https://github.com/Sreyas-Sreelal/samp-bcrypt/releases/download/0.4.1/samp-bcrypt-linux-x86.zip",
+    "sha256": "ebf76b12d799046a605e3063bb7b64b08e1fad9bdb3c299b357ec215a0793b5d",
+    "destination": "plugins/samp_bcrypt.so",
+    "include_matches_existing": true
+  }
+}
