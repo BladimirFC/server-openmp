@@ -1,0 +1,31 @@
+# Configuracion local con credenciales; usar las plantillas .example.
+config.json
+mysql_login.ini
+.env
+.env.*
+!.env.example
+
+# Datos privados y estado de las bases de datos, incluidos los backups.
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+/bans.json
+
+# Logs y diagnosticos generados localmente.
+/logs/**
+!/logs/.gitkeep
+*.log
+/log.txt
+/compile
+/compile_err.txt
+
+# Archivos temporales del sistema y del editor.
+Thumbs.db
+Desktop.ini
+*.tmp
+*.swp
+__pycache__/
+*.pyc
