@@ -305,7 +305,8 @@ stock bool:LoadAuthAccount(playerid)
     if (g_SQL == DB:0) return false;
     new query[256]; // Caracteres; incluye nombre escapado para SQLite.
     format(query, sizeof query,
-        "SELECT `id`, `username`, `password` FROM `accounts` WHERE `username` = '%q' LIMIT 1",
+        "SELECT `id`, `username`, `password`, length(CAST(`password` AS BLOB)) AS password_bytes \
+        FROM `accounts` WHERE `username` = '%q' LIMIT 1",
         g_Auth[playerid][authName]);
     new DBResult:result = DB_ExecuteQuery(g_SQL, query);
     if (result == DBResult:0) return false;
@@ -323,8 +324,12 @@ stock bool:LoadAuthAccount(playerid)
     // Recuperar la escritura original del nombre para verificar el mismo salt.
     new bool:loadedName = DB_GetFieldStringByName(result, "username", g_Auth[playerid][authName], MAX_PLAYER_NAME + 1);
     new bool:loadedHash = DB_GetFieldStringByName(result, "password", g_Auth[playerid][authHash], 65);
+    // SQLite puede devolver exito aunque el buffer solo contenga un prefijo.
+    // Medir bytes tambien detecta datos posteriores a un terminador incrustado.
+    new passwordBytes = DB_GetFieldIntByName(result, "password_bytes");
     DB_FreeResultSet(result);
-    if (!loadedName || !loadedHash || g_Auth[playerid][authAccountId] <= 0
+    if (!loadedName || !loadedHash || passwordBytes != strlen(g_Auth[playerid][authHash])
+        || g_Auth[playerid][authAccountId] <= 0
         || (!IsBcryptHash(g_Auth[playerid][authHash]) && !IsLegacyHash(g_Auth[playerid][authHash])))
         return false;
     g_Auth[playerid][authState] = AUTH_LOGIN;
