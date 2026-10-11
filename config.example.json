@@ -15,6 +15,10 @@
     "discord": {
         "invite": ""
     },
+    "cef": {
+        "debug": false,
+        "resources_loader_mode": "none"
+    },
     "chat_input_filter": true,
     "enable_query": true,
     "game": {

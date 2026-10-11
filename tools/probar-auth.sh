@@ -3,8 +3,8 @@ set -euo pipefail
 
 projectRoot="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 port="${1:-7778}"
-if (( $# > 1 )) || [[ ! "$port" =~ ^[1-9][0-9]{0,4}$ ]] || (( port > 65535 )); then
-    echo 'Uso: ./tools/probar-auth.sh [puerto entre 1 y 65535]' >&2
+if (( $# > 1 )) || [[ ! "$port" =~ ^[1-9][0-9]{0,4}$ ]] || (( port > 65533 )); then
+    echo 'Uso: ./tools/probar-auth.sh [puerto entre 1 y 65533; CEF usa puerto + 2]' >&2
     exit 2
 fi
 testRoot="$(mktemp -d "${TMPDIR:-/tmp}/gm-venta-linux.XXXXXX")"
@@ -52,6 +52,7 @@ start_scenario() {
     local name="$1" sourceFile="$2"
     scenarioRoot="$testRoot/$name"
     mkdir -p -- "$scenarioRoot"/{gamemodes,scriptfiles,models,plugins}
+    cp -R -- "$projectRoot/scriptfiles/cef" "$scenarioRoot/scriptfiles/cef"
     ln -s -- "$projectRoot/omp-server" "$scenarioRoot/omp-server"
     ln -s -- "$projectRoot/components" "$scenarioRoot/components"
     ln -s -- "$projectRoot/plugins/samp_bcrypt.so" "$scenarioRoot/plugins/samp_bcrypt.so"
@@ -62,7 +63,8 @@ start_scenario() {
   "name": "Pruebas Linux", "announce": false, "max_players": 10,
   "rcon": {"enable": false},
   "logging": {"file": "test.log", "enable": true, "log_sqlite": false, "log_sqlite_queries": false},
-  "network": {"port": $port, "bind": "127.0.0.1"}
+  "network": {"port": $port, "bind": "127.0.0.1"},
+  "cef": {"debug": false, "resources_loader_mode": "none", "master_resource_key": "$(python3 -c 'import secrets; print(secrets.token_hex(16))')"}
 }
 EOF
     mkfifo -- "$scenarioRoot/console"
@@ -97,10 +99,15 @@ check_errors() {
 
 start_scenario arranque 'gamemodes/Gm venta.pwn'
 wait_for_log '\[Auth\] Login y registro preparados\.' 20
+wait_for_log 'Component initialized \(v1\.3\.0\)\.' 5
+wait_for_log "Resource 'auth' successfully packed" 5
+wait_for_log "Network Server started successfully on port $((port + 2))\." 5
+[[ -s "$scenarioRoot/scriptfiles/cef/auth.pak" ]]
+[[ -s "$scenarioRoot/scriptfiles/cef/auth.pak.manifest" ]]
 [[ -s "$scenarioRoot/scriptfiles/gm_venta.db" ]]
 stop_server
 check_errors
-echo '[LINUX] GM compilada, iniciada y cerrada con su base SQLite temporal.'
+echo '[LINUX] GM y CEF 1.3.0 iniciados; recurso HTML empaquetado y base SQLite temporal comprobados.'
 
 start_scenario autenticacion 'tests/auth_security.pwn'
 wait_for_log '\[TEST\] FIN:' 75

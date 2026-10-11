@@ -2,6 +2,8 @@
 
 Proyecto de servidor open.mp para Windows y Linux x86, con el gamemode Pawn `Gm venta`, registro e inicio de sesión mediante SQLite y bcrypt.
 
+El acceso dispone de una interfaz HTML con **omp-cef 1.3.0** y conserva los diálogos clásicos para clientes sin el mod. Consulta [CEF.md](CEF.md) para configurar el componente, instalar el cliente en GTA y abrir el puerto UDP adicional.
+
 El repositorio incluye el código fuente, los AMX existentes, componentes, plugins, compiladores, includes, recursos y copias históricas del código que estaban presentes en la carpeta del proyecto al subirlo.
 
 ## Preparación en Windows
@@ -47,6 +49,8 @@ chmod +x omp-server compilar.sh iniciar.sh tools/*.sh tools/pawnc-3.10.10-linux/
 ```
 
 El script compila y arranca primero la GM real, comprueba que crea su base SQLite y luego ejecuta `tests/auth_security.pwn`. Usa carpetas y bases temporales, escucha en `127.0.0.1`, detiene sus propios procesos al terminar y conserva los logs para diagnóstico. No utiliza la configuración ni las cuentas del servidor local.
+
+También verifica la carga de CEF y el empaquetado del recurso `auth`. La red adicional del componente escucha en puerto + 2; ejecutar las pruebas en una máquina aislada. CI prueba además la interfaz HTML en Chromium.
 
 El workflow `.github/workflows/linux.yml` realiza estas comprobaciones en Ubuntu 22.04 en cada push a `main`, en pull requests y de forma manual desde GitHub Actions. Verifica además los SHA-256 de los binarios con `tools/linux-binaries.sha256`. Es una prueba de integración; no mantiene un servidor de juego desplegado.
 

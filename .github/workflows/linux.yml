@@ -1,4 +1,4 @@
-name: Linux - compilacion y autenticacion
+name: Linux - compilacion, autenticacion y CEF
 
 on:
   push:
@@ -27,3 +27,11 @@ jobs:
           done
       - name: Compilar, arrancar la GM y probar autenticacion
         run: ./tools/probar-auth.sh
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Probar login HTML en Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/cef-ui-test" --no-package-lock playwright@1.62.1
+          "$RUNNER_TEMP/cef-ui-test/node_modules/.bin/playwright" install --with-deps chromium
+          NODE_PATH="$RUNNER_TEMP/cef-ui-test/node_modules" node tools/probar-cef-ui.cjs

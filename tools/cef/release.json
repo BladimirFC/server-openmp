@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/aurora-mp/omp-cef",
+  "version": "1.3.0",
+  "source_commit": "4f077c4b8850f591aa5005a34adb25a685ab0643",
+  "server_package": "https://github.com/aurora-mp/omp-cef/releases/download/v1.3.0/cef-omp-v1.3.0-x86.zip",
+  "server_package_sha256": "5ce6894b8db4a35fcc84fa661e702f03142310ab8beaa6f212ee38811d1ec26d",
+  "architecture": "x86",
+  "license": "LICENSE",
+  "checksums": "../linux-binaries.sha256",
+  "client_release": "https://github.com/aurora-mp/omp-cef/releases/tag/v1.3.0",
+  "references": [
+    "https://github.com/aurora-mp/omp-cef/wiki/Installation-Server-side",
+    "https://github.com/aurora-mp/omp-cef/wiki/Installation-Client-side",
+    "https://github.com/aurora-mp/omp-cef/wiki/JavaScript-Events"
+  ]
+}
