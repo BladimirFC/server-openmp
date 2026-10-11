@@ -90,6 +90,25 @@ public OnGameModeInit()
     Check(!IsValidNewPassword(tooLong), "rechazar mas de 72 caracteres");
     Check(!IsBcryptHash("hash_invalido"), "rechazar hashes corruptos");
     if (!g_DatabaseReady) { FinishTests(); return 1; }
+    // Un campo truncado no debe convertirse en un hash aparentemente valido.
+    new legacyHash[65], query[512];
+    SHA256_Hash("old4", "TruncatedLegacy", legacyHash, sizeof legacyHash);
+    format(query, sizeof query,
+        "INSERT INTO accounts(username,password) VALUES ('TruncatedLegacy','%q' || 'extra')", legacyHash);
+    Check(ExecuteAuthQuery(query), "preparar hash SHA256 con sufijo corrupto");
+    format(g_Auth[9][authName], MAX_PLAYER_NAME + 1, "%s", "TruncatedLegacy");
+    Check(!LoadAuthAccount(9), "rechazar SHA256 truncado al cargar cuenta");
+    format(query, sizeof query,
+        "INSERT INTO accounts(username,password) VALUES ('EmbeddedNullLegacy','%q' || char(0) || 'extra')", legacyHash);
+    Check(ExecuteAuthQuery(query), "preparar hash con terminador incrustado");
+    format(g_Auth[9][authName], MAX_PLAYER_NAME + 1, "%s", "EmbeddedNullLegacy");
+    Check(!LoadAuthAccount(9), "rechazar hash con datos despues del terminador");
+    format(query, sizeof query,
+        "INSERT INTO accounts(username,password) VALUES ('ExactLegacy','%q')", legacyHash);
+    Check(ExecuteAuthQuery(query), "preparar SHA256 completo sin truncamiento");
+    format(g_Auth[9][authName], MAX_PLAYER_NAME + 1, "%s", "ExactLegacy");
+    Check(LoadAuthAccount(9) && IsLegacyHash(g_Auth[9][authHash]), "conservar compatibilidad con SHA256 de 64 bytes");
+    Check(DB_GetDatabaseResultSetCount() == 0, "rechazar hashes corruptos sin filtrar resultados SQL");
     SetTestPlayer(0, "VentaSecure");
     Check(g_Auth[0][authState] == AUTH_REGISTER, "cuenta nueva solicita registro");
     SubmitTestDialog(0, DIALOG_REGISTER, "1234567");
@@ -194,6 +213,10 @@ public RunSecureStage()
             SetTestPlayer(0, "ventasecure");
             Check(IsBcryptHash(g_Auth[0][authHash]), "guardar bcrypt de 60 caracteres");
             Check(strcmp(g_Auth[0][authName], "VentaSecure") == 0, "recuperar nombre original");
+            Check(ExecuteAuthQuery("INSERT INTO accounts(username,password) SELECT 'EmbeddedNullBcrypt',password || char(0) || 'extra' FROM accounts WHERE username='VentaSecure'"),
+                "preparar bcrypt real con datos tras terminador");
+            format(g_Auth[9][authName], MAX_PLAYER_NAME + 1, "%s", "EmbeddedNullBcrypt");
+            Check(!LoadAuthAccount(9), "rechazar bcrypt con datos ocultos tras terminador");
             SubmitTestDialog(0, DIALOG_LOGIN, "ClaveIncorrecta");
             Check(g_Auth[0][authState] == AUTH_VERIFYING, "verificacion asincrona");
             SubmitTestDialog(0, DIALOG_LOGIN, "ClaveSegura_246");
