@@ -25,3 +25,6 @@ acd85d597d8b9fcb7b67ddef83c9b10b45965306883aa6ef863a857e017a2dae  components/Veh
 189c9579c3affe7555f7743b5868cbd2094d040eb0feecce8abd4a182fe4fa00  tools/pawnc-3.10.10-linux/bin/pawncc
 064693cf723c385b1fd0f2978a3ed04c780a2a8200f4adfa3a3733e4285fd0f7  tools/pawnc-3.10.10-linux/bin/pawndisasm
 bd6111594624ee48fd663e31d71c5412913a7b4df50a4a5a9964d7c5aa4a8fc0  tools/pawnc-3.10.10-linux/lib/libpawnc.so
+8728675b8e83f9d633079b2a1becc5980834134c59adadd8d11e7e3b9d6cca8b  components/Cef.so
+c15a27403a89fc352422dfd593cfe9a56c2cc908bb4d8cb97e1d0e966520f344  components/Cef.dll
+cf6d64be994c8f72e33f7c05cb349f045e084f54904b43502aa186a6ae9ba9e2  qawno/include/cef.inc

@@ -3,7 +3,8 @@
 
     Cuentas nuevas: scriptfiles/gm_venta.db, creada automaticamente.
     Activacion: pawn.main_scripts = ["Gm venta 1"] en config.json.
-    Requiere el plugin samp_bcrypt en pawn.legacy_plugins.
+    Requiere samp_bcrypt en pawn.legacy_plugins y el componente Cef 1.3.0.
+    Login HTML opcional; clientes sin el mod usan dialogos clasicos (ver CEF.md).
 
     Contraseñas nuevas con bcrypt; SHA256 anterior se migra al iniciar sesion.
     Tres fallos bloquean la cuenta cinco minutos, incluso tras reconectar.
@@ -432,6 +433,8 @@ stock bool:CheckAuthAccess(playerid)
     return true;
 }
 
+#include "../includes/auth_cef.inc"
+
 main() {}
 
 public OnGameModeInit()
@@ -443,6 +446,7 @@ public OnGameModeInit()
     EnableStuntBonusForAll(false);
     UsePlayerPedAnims();
     bcrypt_set_thread_limit(2);
+    InitAuthCef();
 
     g_DatabaseReady = OpenAuthDatabase();
     if (g_DatabaseReady)
@@ -459,6 +463,7 @@ public OnGameModeExit()
     {
         new playerid = players[index];
         StopAuthTimer(playerid);
+        CloseAuthCef(playerid);
         g_Session[playerid]++;
     }
     if (g_SQL != DB:0)
@@ -471,6 +476,7 @@ public OnGameModeExit()
 
 public OnPlayerConnect(playerid)
 {
+    ResetAuthCef(playerid);
     StopAuthTimer(playerid);
     static const emptyAuth[E_AUTH_DATA];
     g_Auth[playerid] = emptyAuth;
@@ -497,6 +503,7 @@ public OnPlayerConnect(playerid)
 
 public OnPlayerDisconnect(playerid, reason)
 {
+    ResetAuthCef(playerid);
     StopAuthTimer(playerid);
     g_Session[playerid]++;
     static const emptyAuth[E_AUTH_DATA];
@@ -508,7 +515,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
     if (dialogid != DIALOG_LOGIN && dialogid != DIALOG_REGISTER) return 0;
     if (IsPlayerNPC(playerid)) return 1;
+    if (g_AuthCef[playerid][cefLoaded]) return 1;
+    return ProcessAuthInput(playerid, dialogid, response, inputtext);
+}
 
+stock ProcessAuthInput(playerid, dialogid, response, const inputtext[])
+{
     // Ignorar respuestas repetidas o que no corresponden al estado actual.
     if (dialogid == DIALOG_REGISTER && g_Auth[playerid][authState] != AUTH_REGISTER) return 1;
     if (dialogid == DIALOG_LOGIN && g_Auth[playerid][authState] != AUTH_LOGIN) return 1;
@@ -520,7 +532,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
         if (!IsValidNewPassword(inputtext))
         {
             SendClientMessage(playerid, COLOR_ERROR, "La contrasena debe tener entre 8 y 72 caracteres.");
-            ShowAuthDialog(playerid);
+            ShowAuthDialog(playerid, "La contrasena debe tener entre 8 y 72 caracteres.");
             return 1;
         }
 
@@ -540,7 +552,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (strlen(inputtext) > MAX_PASSWORD_LENGTH)
     {
         SendClientMessage(playerid, COLOR_ERROR, "La contrasena no puede superar 72 caracteres.");
-        ShowAuthDialog(playerid);
+        ShowAuthDialog(playerid, "La contrasena no puede superar 72 caracteres.");
         return 1;
     }
 
@@ -624,7 +636,7 @@ stock ProcessAuthVerification(playerid, bool:success, session, accountId)
     {
         g_Auth[playerid][authState] = AUTH_LOGIN;
         SendClientMessage(playerid, COLOR_ERROR, "Contrasena incorrecta. Intenta de nuevo.");
-        ShowAuthDialog(playerid);
+        ShowAuthDialog(playerid, "Contrasena incorrecta. Intenta de nuevo.");
         return 1;
     }
     return CompleteAuth(playerid, false);
@@ -696,6 +708,7 @@ stock StopAuthTimer(playerid)
 
 stock CloseAuth(playerid, const message[])
 {
+    CloseAuthCef(playerid);
     g_Auth[playerid][authState] = AUTH_CLOSING;
     g_Auth[playerid][authHash][0] = EOS;
     StopAuthTimer(playerid);
@@ -705,8 +718,10 @@ stock CloseAuth(playerid, const message[])
     return 1;
 }
 
-stock ShowAuthDialog(playerid)
+stock ShowAuthDialog(playerid, const message[] = "")
 {
+    if (g_Auth[playerid][authState] != AUTH_REGISTER && g_Auth[playerid][authState] != AUTH_LOGIN) return;
+    if (ShowAuthCef(playerid, message)) return;
     new title[64]; // Caracteres; texto del titulo y nombre de hasta 24 caracteres.
     if (g_Auth[playerid][authState] == AUTH_REGISTER)
     {
@@ -741,6 +756,7 @@ stock CompleteAuth(playerid, bool:registered)
         return CloseAuth(playerid, "No se pudo guardar el acceso. Intenta mas tarde.");
 
     StopAuthTimer(playerid);
+    CloseAuthCef(playerid);
     g_Auth[playerid][authState] = AUTH_LOGGED_IN;
     g_Auth[playerid][authHash][0] = EOS;
 

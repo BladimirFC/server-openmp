@@ -5,12 +5,14 @@ $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('gm-venta-tests-' + [gu
 New-Item -ItemType Directory -Path $testRoot,(Join-Path $testRoot 'gamemodes'),(Join-Path $testRoot 'scriptfiles'),(Join-Path $testRoot 'models') | Out-Null
 Copy-Item -LiteralPath (Join-Path $serverRoot 'components'),(Join-Path $serverRoot 'plugins') -Destination $testRoot -Recurse
 Copy-Item -LiteralPath (Join-Path $serverRoot 'omp-server.exe') -Destination $testRoot
+Copy-Item -LiteralPath (Join-Path $serverRoot 'scriptfiles\cef') -Destination (Join-Path $testRoot 'scriptfiles') -Recurse
 $testConfig = @{
     pawn = @{ main_scripts = @('auth_security 1'); side_scripts = @(); legacy_plugins = @('samp_bcrypt') }
     name = 'Pruebas de autenticacion'; announce = $false; max_players = 10
     rcon = @{ enable = $false }
     logging = @{ file = 'test.log'; enable = $true; log_sqlite = $false; log_sqlite_queries = $false }
     network = @{ port = $Port; bind = '127.0.0.1' }
+    cef = @{ debug = $false; resources_loader_mode = 'none'; master_resource_key = [guid]::NewGuid().ToString('N') }
 } | ConvertTo-Json -Depth 5
 [System.IO.File]::WriteAllText((Join-Path $testRoot 'config.json'), $testConfig)
 $compilerArgs = @(

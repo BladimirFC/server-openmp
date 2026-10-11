@@ -29,3 +29,7 @@ Desktop.ini
 *.swp
 __pycache__/
 *.pyc
+
+# Recursos CEF empaquetados y cache generados por el componente.
+/scriptfiles/cef/*.pak
+/scriptfiles/cef/*.pak.manifest

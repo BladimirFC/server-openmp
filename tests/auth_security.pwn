@@ -1,4 +1,45 @@
 #include <open.mp>
+#include <cef>
+new testCefCreates, testCefDestroys, testCefStates;
+stock TestCefCreate(playerid, browserid, const url[], bool:focused, bool:controls_chat)
+{
+    #pragma unused playerid, browserid, url, focused, controls_chat
+    testCefCreates++;
+    return 1;
+}
+stock TestCefDestroy(playerid, browserid)
+{
+    #pragma unused playerid, browserid
+    testCefDestroys++;
+    return 1;
+}
+stock TestCefFocus(playerid, browserid, bool:focused)
+{
+    #pragma unused playerid, browserid, focused
+    return 1;
+}
+stock TestCefChat(playerid, bool:enabled)
+{
+    #pragma unused playerid, enabled
+    return 1;
+}
+stock TestCefEmit(playerid, browserid, const event[], {E_CEF_ARGUMENT_TYPE, Float, _}:...)
+{
+    #pragma unused playerid, browserid, event
+    testCefStates++;
+    return 1;
+}
+stock bool:TestHideDialog(playerid)
+{
+    #pragma unused playerid
+    return true;
+}
+#define CEF_CreateBrowser TestCefCreate
+#define CEF_DestroyBrowser TestCefDestroy
+#define CEF_FocusBrowser TestCefFocus
+#define CEF_ToggleChatInput TestCefChat
+#define CEF_EmitEvent TestCefEmit
+#define HidePlayerDialog TestHideDialog
 new bool:testConnected[MAX_PLAYERS];
 stock bool:TestIsPlayerConnected(playerid) { return playerid >= 0 && playerid < MAX_PLAYERS && testConnected[playerid]; }
 stock bool:TestIsPlayerNPC(playerid) {
@@ -82,6 +123,7 @@ public OnAuthPasswordVerified(playerid, bool:success, session, accountId, epoch,
 public OnGameModeInit()
 {
     bcrypt_set_thread_limit(2);
+    InitAuthCef();
     g_DatabaseReady = OpenAuthDatabase();
     Check(g_DatabaseReady, "abrir base y tabla de bloqueos");
     Check(!IsValidNewPassword("1234567") && IsValidNewPassword("12345678"), "minimo de ocho caracteres");
@@ -195,6 +237,71 @@ stock BeginLimitsTests()
         "solicitud diecisiete rechazada sin encolarse");
     DisconnectTestPlayer(26);
     testStage = 10;
+}
+
+stock BeginCefTests()
+{
+    SetTestPlayer(9, "CefDraft");
+    Check(!g_AuthCef[9][cefBrowser] && !g_AuthCef[9][cefLoaded], "cliente sin CEF conserva acceso clasico");
+    OnCefReady(9);
+    new browserid = g_AuthCef[9][cefBrowser];
+    Check(browserid > 0 && !g_AuthCef[9][cefLoaded] && testCefCreates > 0, "crear browser tras descargar recursos");
+    new emits = testCefStates;
+    OnAuthCefReady(9, browserid, g_Session[9] + 1, g_AuthEpoch);
+    Check(!g_AuthCef[9][cefLoaded] && testCefStates == emits, "HTML de sesion antigua no activa interfaz");
+    OnAuthCefReady(9, browserid, g_Session[9], g_AuthEpoch + 1);
+    Check(!g_AuthCef[9][cefLoaded], "HTML de generacion antigua no activa interfaz");
+    OnAuthCefReady(9, browserid + 1, g_Session[9], g_AuthEpoch);
+    Check(!g_AuthCef[9][cefLoaded], "browser ajeno no activa interfaz");
+    OnAuthCefReady(9, browserid, g_Session[9], g_AuthEpoch);
+    Check(g_AuthCef[9][cefLoaded] && !g_AuthCef[9][cefLoadTimer] && testCefStates > emits, "HTML confirmado recibe estado y cancela timeout");
+    OnAuthCefReady(9, browserid, g_Session[9], g_AuthEpoch);
+    Check(testCefStates == emits + 1, "ready repetido no emite estado ilimitadamente");
+    SubmitTestDialog(9, DIALOG_REGISTER, "ClaveCef_246");
+    Check(CountPendingJobs() == 0, "dialogo oculto no puede enviar acceso paralelo");
+    OnAuthCefSubmit(9, browserid, g_Session[9] + 1, g_AuthEpoch, "ClaveCef_246");
+    OnAuthCefSubmit(9, browserid, g_Session[9], g_AuthEpoch + 1, "ClaveCef_246");
+    OnAuthCefSubmit(9, browserid + 1, g_Session[9], g_AuthEpoch, "ClaveCef_246");
+    Check(CountPendingJobs() == 0 && g_Auth[9][authState] == AUTH_REGISTER, "eventos de otro browser o sesion no encolan bcrypt");
+    OnAuthCefSubmit(9, browserid, g_Session[9], g_AuthEpoch, "short");
+    Check(CountPendingJobs() == 0 && g_Auth[9][authState] == AUTH_REGISTER, "registro CEF aplica minimo de ocho caracteres");
+    new nonAscii[9] = "abcdefg";
+    nonAscii[7] = 233;
+    OnAuthCefSubmit(9, browserid, g_Session[9], g_AuthEpoch, nonAscii);
+    Check(CountPendingJobs() == 0, "CEF rechaza conversion ambigua de contrasenas entre plataformas");
+    OnAuthCefFallback(9, browserid, g_Session[9], g_AuthEpoch);
+    Check(g_AuthCef[9][cefDisabled] && !g_AuthCef[9][cefBrowser] && !g_AuthCef[9][cefLoaded], "acceso clasico cierra CEF y restaura transporte");
+    OnAuthCefSubmit(9, browserid, g_Session[9], g_AuthEpoch, "ClaveCef_246");
+    Check(CountPendingJobs() == 0, "CEF cerrado no puede enviar contrasena");
+    OnCefReady(9);
+    Check(!g_AuthCef[9][cefBrowser], "ready repetido respeta eleccion de acceso clasico");
+    SetTestPlayer(9, "CefDraft");
+    OnCefReady(9);
+    new nextBrowser = g_AuthCef[9][cefBrowser];
+    Check(nextBrowser != browserid && !g_AuthCef[9][cefDisabled], "reconectar usa browser distinto y limpia preferencias");
+    KillTimer(g_AuthCef[9][cefLoadTimer]);
+    AuthCefLoadTimeout(9, g_Session[9], g_AuthEpoch, nextBrowser);
+    Check(g_AuthCef[9][cefDisabled] && !g_AuthCef[9][cefBrowser], "HTML que no carga vuelve a dialogos");
+    SetTestPlayer(9, "CefDraft");
+    OnCefReady(9);
+    nextBrowser = g_AuthCef[9][cefBrowser];
+    OnCefBrowserCreated(9, nextBrowser, false, E_CEF_CREATE_STATUS:0, "prueba");
+    Check(!g_AuthCef[9][cefBrowser] && g_AuthCef[9][cefDisabled], "fallo al crear browser vuelve a dialogos");
+    SetTestPlayer(9, "CefDraft");
+    OnCefReady(9);
+    nextBrowser = g_AuthCef[9][cefBrowser];
+    OnAuthCefReady(9, nextBrowser, g_Session[9], g_AuthEpoch);
+    OnAuthCefCancel(9, nextBrowser, g_Session[9], g_AuthEpoch);
+    Check(g_Auth[9][authState] == AUTH_CLOSING && !g_AuthCef[9][cefBrowser], "cancelar CEF cierra acceso y limpia browser");
+    SetTestPlayer(9, "CefReal");
+    OnCefReady(9);
+    nextBrowser = g_AuthCef[9][cefBrowser];
+    OnAuthCefReady(9, nextBrowser, g_Session[9], g_AuthEpoch);
+    OnAuthCefSubmit(9, nextBrowser, g_Session[9], g_AuthEpoch, "ClaveCef_246");
+    Check(g_Auth[9][authState] == AUTH_CREATING && CountPendingJobs() == 1, "registro HTML usa bcrypt real");
+    OnAuthCefSubmit(9, nextBrowser, g_Session[9], g_AuthEpoch, "ClaveCef_246");
+    Check(CountPendingJobs() == 1, "submit HTML duplicado no reserva otro trabajo");
+    testStage = 14;
 }
 
 public RunSecureStage()
@@ -375,6 +482,37 @@ public RunSecureStage()
             if (CountPendingJobs() != 0) return 1;
             Check(g_Auth[8][authState] == AUTH_CLOSING, "migracion de cuenta eliminada no concede acceso");
             DisconnectTestPlayer(8);
+            BeginCefTests();
+        }
+        case 14:
+        {
+            if (g_Auth[9][authState] != AUTH_LOGGED_IN) return 1;
+            Check(!g_AuthCef[9][cefBrowser] && !g_AuthCef[9][cefLoadTimer] && testCefDestroys > 0,
+                "registro CEF correcto destruye UI y timers");
+            SetTestPlayer(9, "CefReal");
+            Check(IsBcryptHash(g_Auth[9][authHash]), "registro CEF guardo bcrypt en SQLite");
+            OnCefReady(9);
+            new browserid = g_AuthCef[9][cefBrowser];
+            OnAuthCefReady(9, browserid, g_Session[9], g_AuthEpoch);
+            OnAuthCefSubmit(9, browserid, g_Session[9], g_AuthEpoch, "OtraClave_246");
+            Check(g_Auth[9][authState] == AUTH_VERIFYING, "login HTML usa verificacion bcrypt real");
+            testStage = 15;
+        }
+        case 15:
+        {
+            if (g_Auth[9][authState] != AUTH_LOGIN) return 1;
+            Check(GetAuthLimit(g_Auth[9][authAccountId], failures, lockedUntil) && failures == 1,
+                "fallo HTML aplica limites por cuenta existentes");
+            OnAuthCefSubmit(9, g_AuthCef[9][cefBrowser], g_Session[9], g_AuthEpoch, "ClaveCef_246");
+            testStage = 16;
+        }
+        case 16:
+        {
+            if (g_Auth[9][authState] != AUTH_LOGGED_IN) return 1;
+            Check(GetAuthLimit(g_Auth[9][authAccountId], failures, lockedUntil) && failures == 0,
+                "login HTML correcto limpia intentos");
+            Check(!g_AuthCef[9][cefBrowser] && !g_AuthCef[9][cefLoaded], "login HTML correcto libera interfaz");
+            DisconnectTestPlayer(9);
             Check(CountPendingJobs() == 0 && DB_GetDatabaseResultSetCount() == 0, "sin trabajos ni resultados SQL pendientes al terminar");
             FinishTests();
         }
